@@ -6,68 +6,67 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.integration.annotation.IntegrationComponentScan;
+import org.springframework.integration.annotation.Router;
 import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.integration.annotation.Splitter;
 import org.springframework.integration.channel.DirectChannel;
-import org.springframework.integration.config.EnableIntegration;
 import org.springframework.messaging.handler.annotation.Headers;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Profile("disable")
+//@Profile("disable")
 @Configuration
-public class TwoServantAndSplitterConfiguration {
+public class TwoOfficersAndRouterConfiguration {
 
-    @Component
-    class ShopClientSplitter {
-
-        @Splitter(inputChannel = "clientInput", outputChannel = "splitClientChannel")
-        public Collection split(String payload) {
-            List messages = new ArrayList();
-            messages.add(payload);
-            messages.add(payload);
-            return messages;
+    @Router(inputChannel = "officeInput")
+    public String router(String pay) {
+        Integer integer = Integer.valueOf(pay);
+        if (integer % 2 == 0) {
+            return "officeChannel1";
         }
+        return "officeChannel2";
     }
 
     @Autowired
-    public Shop shop;
+    public Office office;
 
     @PostConstruct
     public void doSth() throws InterruptedException {
-        final Logger log = LoggerFactory.getLogger("shop client queue");
+        final Logger log = LoggerFactory.getLogger("office client queue");
         AtomicInteger atomicInteger = new AtomicInteger(0);
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 log.info("create");
-                shop.placeOrder(atomicInteger.getAndIncrement());
+                office.placeOrder(atomicInteger.getAndIncrement());
             }
         }, 2000, 1000);
     }
 
     @Bean
-    public DirectChannel clientInput() {
+    public DirectChannel officeInput() {
         return new DirectChannel();
     }
 
     @Bean
-    public DirectChannel splitClientChannel() {
+    public DirectChannel officeChannel1() {
         return new DirectChannel();
     }
 
-    @ServiceActivator(inputChannel = "splitClientChannel")
+    @Bean
+    public DirectChannel officeChannel2() {
+        return new DirectChannel();
+    }
+
+    @ServiceActivator(inputChannel = "officeChannel1")
     public void shopAssistant1(String payload, @Headers Map<String, Object> headerMap) {
         final Logger log = LoggerFactory.getLogger("shop_assistant_1");
         log.info(payload);
         return;
     }
 
-    @ServiceActivator(inputChannel = "splitClientChannel")
+    @ServiceActivator(inputChannel = "officeChannel2")
     public void shopAssistant2(String payload, @Headers Map<String, Object> headerMap) {
         final Logger log = LoggerFactory.getLogger("shop_assistant_2");
         log.info(payload);
